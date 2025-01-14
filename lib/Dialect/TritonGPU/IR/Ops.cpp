@@ -12,7 +12,8 @@ namespace mlir::triton::gpu {
 
 namespace {
 
-template <typename T> bool hasEncoding(Value value) {
+template <typename T>
+bool hasEncoding(Value value) {
   auto type = value.getType();
   if (auto tensorType = dyn_cast<TensorOrMemDesc>(type)) {
     auto encoding = tensorType.getEncoding();
@@ -25,7 +26,7 @@ bool hasDotOperandEncoding(Value value) {
   return hasEncoding<triton::gpu::DotOperandEncodingAttr>(value);
 }
 
-} // namespace
+}  // namespace
 
 //===----------------------------------------------------------------------===//
 // Canonicalizer
@@ -36,16 +37,13 @@ struct CanonicalizeConvertFromReshape
     : public mlir::OpRewritePattern<triton::ReshapeOp> {
   using OpRewritePattern::OpRewritePattern;
 
-  mlir::LogicalResult
-  matchAndRewrite(triton::ReshapeOp op,
-                  PatternRewriter &rewriter) const override {
+  mlir::LogicalResult matchAndRewrite(
+      triton::ReshapeOp op, PatternRewriter &rewriter) const override {
     auto convert = op.getSrc().getDefiningOp<ConvertLayoutOp>();
-    if (!convert)
-      return failure();
+    if (!convert) return failure();
     if (isExpensiveView(convert.getSrc().getType(), op.getType()))
       return failure();
-    if (!op.getAllowReorder() || op.getEfficientLayout())
-      return failure();
+    if (!op.getAllowReorder() || op.getEfficientLayout()) return failure();
 
     rewriter.replaceOpWithNewOp<triton::ReshapeOp>(
         op, op.getType(), convert.getSrc(), op.getAllowReorder());
@@ -58,12 +56,10 @@ struct CanonicalizeConvertFromHistogram
     : public mlir::OpRewritePattern<triton::HistogramOp> {
   using OpRewritePattern::OpRewritePattern;
 
-  mlir::LogicalResult
-  matchAndRewrite(triton::HistogramOp op,
-                  PatternRewriter &rewriter) const override {
+  mlir::LogicalResult matchAndRewrite(
+      triton::HistogramOp op, PatternRewriter &rewriter) const override {
     auto convert = op.getSrc().getDefiningOp<ConvertLayoutOp>();
-    if (!convert)
-      return failure();
+    if (!convert) return failure();
     rewriter.replaceOpWithNewOp<triton::HistogramOp>(
         op, op->getResult(0).getType(), convert.getSrc());
     return mlir::success();
@@ -79,15 +75,13 @@ struct CanonicalizeConvertFromHistogram
 struct CanonicalizeConvertFromGatherSource : public OpRewritePattern<GatherOp> {
   using OpRewritePattern::OpRewritePattern;
 
-  mlir::LogicalResult
-  matchAndRewrite(GatherOp op, PatternRewriter &rewriter) const override {
+  mlir::LogicalResult matchAndRewrite(
+      GatherOp op, PatternRewriter &rewriter) const override {
     // Don't do this if the compiler picked an optimized layout.
-    if (op.getEfficientLayout())
-      return failure();
+    if (op.getEfficientLayout()) return failure();
 
     auto convert = op.getSrc().getDefiningOp<ConvertLayoutOp>();
-    if (!convert)
-      return failure();
+    if (!convert) return failure();
 
     rewriter.replaceOpWithNewOp<GatherOp>(op, convert.getSrc(), op.getIndices(),
                                           op.getAxis());
@@ -100,13 +94,15 @@ struct CanonicalizeConvertFromAlloc
     : public mlir::OpRewritePattern<triton::gpu::LocalAllocOp> {
   using OpRewritePattern::OpRewritePattern;
 
-  mlir::LogicalResult
-  matchAndRewrite(triton::gpu::LocalAllocOp op,
-                  PatternRewriter &rewriter) const override {
-    if (!op.getSrc())
-      return failure();
+  mlir::LogicalResult matchAndRewrite(
+      triton::gpu::LocalAllocOp op, PatternRewriter &rewriter) const override {
+    if (!op.getSrc()) return failure();
     auto convert = op.getSrc().getDefiningOp<ConvertLayoutOp>();
-    if (!convert)
+    if (!convert) return failure();
+    // LocalAllocOp lowering doesn't support going from DotOperandEncoding
+    // to SharedEncoding, so we want to keep this layout conversion.
+    if (mlir::isa<triton::gpu::DotOperandEncodingAttr>(
+            convert.getSrc().getType().getEncoding()))
       return failure();
     rewriter.replaceOpWithNewOp<triton::gpu::LocalAllocOp>(
         op, op->getResult(0).getType(), convert.getSrc());
@@ -119,12 +115,10 @@ struct CanonicalizeConvertFromLocalStore
     : public mlir::OpRewritePattern<triton::gpu::LocalStoreOp> {
   using OpRewritePattern::OpRewritePattern;
 
-  mlir::LogicalResult
-  matchAndRewrite(triton::gpu::LocalStoreOp op,
-                  PatternRewriter &rewriter) const override {
+  mlir::LogicalResult matchAndRewrite(
+      triton::gpu::LocalStoreOp op, PatternRewriter &rewriter) const override {
     auto convert = op.getSrc().getDefiningOp<ConvertLayoutOp>();
-    if (!convert)
-      return failure();
+    if (!convert) return failure();
     rewriter.replaceOpWithNewOp<triton::gpu::LocalStoreOp>(op, convert.getSrc(),
                                                            op.getDst());
     return mlir::success();
@@ -135,19 +129,16 @@ struct CanonicalizeConvertFromSplit
     : public mlir::OpRewritePattern<triton::SplitOp> {
   using OpRewritePattern::OpRewritePattern;
 
-  mlir::LogicalResult
-  matchAndRewrite(triton::SplitOp op,
-                  PatternRewriter &rewriter) const override {
+  mlir::LogicalResult matchAndRewrite(
+      triton::SplitOp op, PatternRewriter &rewriter) const override {
     auto convert = op.getSrc().getDefiningOp<ConvertLayoutOp>();
-    if (!convert)
-      return failure();
+    if (!convert) return failure();
     auto srcEncoding = convert.getSrc().getType().getEncoding();
     // Multiple source layout can give the same output layout, if the source
     // layout of the convert gives the same destination layout we can skip the
     // convert.
     auto dstEncoding = inferDstEncoding(op, srcEncoding);
-    if (dstEncoding != op.getOutLHS().getType().getEncoding())
-      return failure();
+    if (dstEncoding != op.getOutLHS().getType().getEncoding()) return failure();
     rewriter.replaceOpWithNewOp<triton::SplitOp>(op, convert.getSrc());
     return mlir::success();
   }
@@ -157,9 +148,8 @@ struct CanonicalizeConvertFromConvert
     : public OpRewritePattern<ConvertLayoutOp> {
   using OpRewritePattern::OpRewritePattern;
 
-  mlir::LogicalResult
-  matchAndRewrite(ConvertLayoutOp op,
-                  PatternRewriter &rewriter) const override {
+  mlir::LogicalResult matchAndRewrite(
+      ConvertLayoutOp op, PatternRewriter &rewriter) const override {
     // Convert to the same layout is redundant.
     if (op->getResultTypes() == op->getOperandTypes()) {
       rewriter.replaceOp(op, op->getOperands());
@@ -170,13 +160,13 @@ struct CanonicalizeConvertFromConvert
     // heuristic to accommodate fused attention.
     auto srcType = op.getSrc().getType();
     auto dstType = op.getType();
-    if (mlir::isa<DotOperandEncodingAttr>(dstType.getEncoding()) &&
-        mlir::isa<NvidiaMmaEncodingAttr>(srcType.getEncoding()))
+    if (mlir::isa_and_nonnull<DotOperandEncodingAttr>(dstType.getEncoding()) &&
+        mlir::isa_and_nonnull<NvidiaMmaEncodingAttr>(srcType.getEncoding()))
       return failure();
 
     // for hopper MMAv3
-    if (mlir::isa<SharedEncodingAttr>(dstType.getEncoding()) &&
-        mlir::isa<NvidiaMmaEncodingAttr>(srcType.getEncoding()) &&
+    if (mlir::isa_and_nonnull<SharedEncodingAttr>(dstType.getEncoding()) &&
+        mlir::isa_and_nonnull<NvidiaMmaEncodingAttr>(srcType.getEncoding()) &&
         llvm::any_of(op.getResult().getUsers(), [](Operation *dot) {
           return dot->hasTrait<OpTrait::DotLike>();
         })) {
@@ -184,8 +174,7 @@ struct CanonicalizeConvertFromConvert
     }
 
     Operation *arg = op.getSrc().getDefiningOp();
-    if (!arg)
-      return failure();
+    if (!arg) return failure();
 
     // cvt(reshape) -> reshape
     if (auto reshape = dyn_cast<ReshapeOp>(arg)) {
@@ -233,8 +222,7 @@ struct CanonicalizeConvertFromConvert
 
     // cvt(cat) -> cat
     if (auto cat = dyn_cast<CatOp>(arg)) {
-      if (isExpensiveCat(cat, op.getType().getEncoding()))
-        return failure();
+      if (isExpensiveCat(cat, op.getType().getEncoding())) return failure();
 
       rewriter.replaceOpWithNewOp<CatOp>(op, op->getResult(0).getType(),
                                          cat.getOperands());
@@ -291,15 +279,14 @@ LogicalResult UpcastMXFPOp::verify() {
 
   auto xTy = getSrc().getType();
   auto scaleTy = getScale().getType();
-  Builder b(getContext());
-  if (xTy.getElementType() != b.getBF16Type() &&
-      xTy.getElementType() != b.getF16Type() &&
-      xTy.getElementType() != b.getI8Type()) {
-    return emitOpError(
-        "element type of the first operand must be bf16/fp16 or i8");
+
+  if (xTy.getElementType() != BFloat16Type::get(getContext()) &&
+      xTy.getElementType() != Float16Type::get(getContext()) &&
+      xTy.getElementType() != IntegerType::get(getContext(), 8)) {
+    return emitOpError("element type of the first operand must be bf16 or i8");
   }
 
-  if (scaleTy.getElementType() != b.getI8Type()) {
+  if (scaleTy.getElementType() != IntegerType::get(getContext(), 8)) {
     return emitOpError("element type of the second operand must be uint8");
   }
 
@@ -373,14 +360,12 @@ LogicalResult UpcastMXFPOp::verify() {
   return success();
 }
 
-RankedTensorType
-UpcastMXFPOp::deduceOutputType(TypedValue<RankedTensorType> inputTensor,
-                               ScaleDotElemType inputElemType,
-                               Type outputElemType) {
+RankedTensorType UpcastMXFPOp::deduceOutputType(
+    TypedValue<RankedTensorType> inputTensor, ScaleDotElemType inputElemType,
+    Type outputElemType) {
   MLIRContext *ctx = inputTensor.getContext();
   auto xTy = inputTensor.getType();
-  if (inputElemType != ScaleDotElemType::E2M1)
-    return xTy;
+  if (inputElemType != ScaleDotElemType::E2M1) return xTy;
 
   auto xShape = xTy.getShape();
   auto newShape = llvm::to_vector(xShape);
@@ -466,17 +451,13 @@ void LocalAllocOp::getEffects(
 }
 
 OpFoldResult LocalAllocOp::fold(FoldAdaptor adaptor) {
-  if (getType().getMutableMemory())
-    return {};
+  if (getType().getMutableMemory()) return {};
   auto src = getSrc();
-  if (!src)
-    return {};
+  if (!src) return {};
   auto localLoadOp = src.getDefiningOp<LocalLoadOp>();
-  if (!localLoadOp)
-    return {};
+  if (!localLoadOp) return {};
   auto loadSrc = localLoadOp.getSrc();
-  if (loadSrc.getType() != getType())
-    return {};
+  if (loadSrc.getType() != getType()) return {};
   return loadSrc;
 }
 
