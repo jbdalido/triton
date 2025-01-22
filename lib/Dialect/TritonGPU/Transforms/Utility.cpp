@@ -44,9 +44,9 @@ SmallVector<unsigned, 3> mmaVersionToInstrShape(int version,
     SmallVector<unsigned> validN;
 
     // MMAv3 with larger instruction shape is preferred.
-    if (eltType.isFloat8E5M2() || eltType.isFloat8E4M3FN() ||
-        eltType.isFloat8E4M3FNUZ() || eltType.isF16() || eltType.isBF16() ||
-        eltType.isF32()) {
+    if (llvm::isa<mlir::Float8E5M2Type, mlir::Float8E4M3FNType,
+                  mlir::Float8E4M3FNUZType>(eltType) ||
+        eltType.isF16() || eltType.isBF16() || eltType.isF32()) {
       validN.assign({256, 248, 240, 232, 224, 216, 208, 200, 192, 184, 176,
                      168, 160, 152, 144, 136, 128, 120, 112, 104, 96,  88,
                      80,  72,  64,  56,  48,  40,  32,  24,  16,  8});
@@ -994,18 +994,26 @@ getSharedEncIfAllUsersAreDotEnc(Value val, bool &incompatible) {
     } else {
       if (!isa<ttg::LocalLoadOp, ttg::ConvertLayoutOp>(user))
         return std::nullopt;
-      auto dotOpEnc = dyn_cast<ttg::DotOperandEncodingAttr>(
-          cast<triton::gpu::TensorOrMemDesc>(user->getResult(0).getType())
-              .getEncoding());
-      if (!dotOpEnc)
+      auto enc =
+          cast<triton::gpu::TensorOrMemDesc>(user->getResult(0).getType()).getEncoding();
+      if (isa<ttg::DotOperandEncodingAttr>(enc)) {
+        auto srcTy = cast<triton::gpu::TensorOrMemDesc>(val.getType());
+        auto CTALayout = ttg::getCTALayout(srcTy.getEncoding());
+        auto order = ttg::getOrder(srcTy.getEncoding());
+        unsigned bitWidth = srcTy.getElementType().getIntOrFloatBitWidth();
+        tempAttr = ttg::SharedEncodingAttr::get(
+            val.getContext(), cast<ttg::DotOperandEncodingAttr>(enc),
+            srcTy.getShape(), order, CTALayout, bitWidth, /*needTrans=*/false);
+      } else if (enc.getAbstractAttribute().getName().str() ==
+                 "triton.gpu.sparse_dot_meta_encoding") {
+        auto srcTy = cast<triton::gpu::TensorOrMemDesc>(val.getType());
+        tempAttr = ttg::SharedEncodingAttr::get(
+            val.getContext(), /*vec=*/1, /*perPhase=*/1, /*maxPhase=*/1,
+            ttg::getOrder(srcTy.getEncoding()),
+            ttg::getCTALayout(srcTy.getEncoding()));
+      } else {
         return std::nullopt;
-      auto srcTy = cast<triton::gpu::TensorOrMemDesc>(val.getType());
-      auto CTALayout = ttg::getCTALayout(srcTy.getEncoding());
-      auto order = ttg::getOrder(srcTy.getEncoding());
-      unsigned bitWidth = srcTy.getElementType().getIntOrFloatBitWidth();
-      tempAttr = ttg::SharedEncodingAttr::get(
-          val.getContext(), dotOpEnc, srcTy.getShape(), order, CTALayout,
-          bitWidth, /*needTrans=*/false);
+      }
     }
     // Check that the shared encodings needed by the users are compatible.
     if (attr != nullptr && attr != tempAttr) {

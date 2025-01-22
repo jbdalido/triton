@@ -56,9 +56,9 @@ Type getTypeFromConstraint(char constraint, PatternRewriter &rewriter) {
   else if (constraint == 'l')
     ty = IntegerType::get(rewriter.getContext(), 64);
   else if (constraint == 'f')
-    ty = FloatType::getF32(rewriter.getContext());
+    ty = Float32Type::get(rewriter.getContext());
   else if (constraint == 'd')
-    ty = FloatType::getF64(rewriter.getContext());
+    ty = Float64Type::get(rewriter.getContext());
   else {
     assert(false && "Unsupported constraint");
   }
@@ -383,10 +383,36 @@ public:
 
   Constraints getOutputConstraints(ttn::WGMMAWaitGroupOp op) const {
     auto outputStructType = cast<LLVM::LLVMStructType>(op.getType());
-    uint32_t numOutputRegs = outputStructType.getBody().size();
-    std::string output =
-        outputStructType.getBody().front().isF32() ? "=f" : "=r";
-    return Constraints(numOutputRegs, output);
+    std::vector<std::string> outputConstraints;
+    outputConstraints.reserve(outputStructType.getBody().size());
+    for (mlir::Type type : outputStructType.getBody()) {
+      if (type.isF32()) {
+        outputConstraints.push_back("=f");
+        continue;
+      } else if (type.isF64()) {
+        outputConstraints.push_back("=d");
+        continue;
+      }
+      unsigned bitwidth = isa<LLVM::LLVMPointerType>(type) ?
+          64 : type.getIntOrFloatBitWidth();
+      switch (bitwidth) {
+        case 1:
+          outputConstraints.push_back("=b");
+          break;
+        case 16:
+          outputConstraints.push_back("=h");
+          break;
+        case 32:
+          outputConstraints.push_back("=r");
+          break;
+        case 64:
+          outputConstraints.push_back("=l");
+          break;
+        default:
+          assert(false && "unsupported bitwidth");
+      }
+    }
+    return outputConstraints;
   }
 
   OperandsAndConstraints
