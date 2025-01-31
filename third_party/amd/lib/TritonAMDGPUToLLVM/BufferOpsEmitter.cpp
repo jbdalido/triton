@@ -1,9 +1,9 @@
-#include "PatternTritonGPUOpToLLVM.h"
-#include "TargetInfo.h"
-#include "Utility.h"
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
 #include "mlir/Dialect/LLVMIR/NVVMDialect.h"
 #include "mlir/IR/PatternMatch.h"
+#include "PatternTritonGPUOpToLLVM.h"
+#include "TargetInfo.h"
+#include "Utility.h"
 #include "triton/Conversion/TritonGPUToLLVM/TypeConverter.h"
 #include "triton/Dialect/Triton/IR/Dialect.h"
 

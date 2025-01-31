@@ -178,3 +178,20 @@ tt.func @infer_trans(%arg0: tensor<32x32xf32, #linear>) -> tensor<32x32xf32, #bl
 }
 
 }
+
+// -----
+
+// CHECK: #[[$BLOCKED:.*]] = #ttg.blocked
+#blocked = #ttg.blocked<{sizePerThread = [4, 4], threadsPerWarp = [4, 8], warpsPerCTA = [4, 1], order = [1, 0]}>
+#shared1 = #ttg.shared<{vec = 4, perPhase = 1, maxPhase = 8, order = [0, 1], hasLeadingOffset = true}>
+#smem = #ttg.shared_memory
+module attributes {"ttg.num-ctas" = 1 : i32, "ttg.num-warps" = 4 : i32, ttg.target = "cuda:90", "ttg.threads-per-warp" = 32 : i32} {
+  tt.func @cvt_from_dot_op_into_local_allow_not_canonicalized(%in: tensor<256x32xf32, #ttg.dot_op<{opIdx = 1, parent = #blocked}>>) -> !ttg.memdesc<256x32xf32, #shared1, #smem> {
+    // CHECK-LABEL: cvt_from_dot_op_into_local_allow_not_canonicalized
+    %cvt_in = ttg.convert_layout %in : tensor<256x32xf32, #ttg.dot_op<{opIdx = 1, parent = #blocked}>> -> tensor<256x32xf32, #blocked>
+    %alloc = ttg.local_alloc %cvt_in : (tensor<256x32xf32, #blocked>) -> !ttg.memdesc<256x32xf32, #shared1, #smem>
+    // CHECK: %[[ALLOC:.*]] = ttg.local_alloc {{.*}} (tensor<{{.*}}, #[[$BLOCKED]]{{.*}}>) ->
+    tt.return %alloc : !ttg.memdesc<256x32xf32, #shared1, #smem>
+  }
+} // end module
+
