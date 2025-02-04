@@ -24,6 +24,7 @@
 #include "MMAHelpers.h"
 #include "Utility.h"
 #include "mlir/Support/LLVM.h"
+#include "triton/Conversion/TritonGPUToLLVM/Utility.h"
 
 using namespace mlir;
 using namespace mlir::triton;
@@ -59,9 +60,9 @@ triton::nvgpu::WGMMAEltType getMmaOperandType(Value a, bool allowTF32) {
     return triton::nvgpu::WGMMAEltType::tf32;
   } else if (aTy.isInteger(8)) {
     return triton::nvgpu::WGMMAEltType::s8;
-  } else if (aTy.isFloat8E5M2()) {
+  } else if (llvm::isa<mlir::Float8E5M2Type>(aTy)) {
     return triton::nvgpu::WGMMAEltType::e5m2;
-  } else if (aTy.isFloat8E4M3FN()) {
+  } else if (llvm::isa<mlir::Float8E4M3FNType>(aTy)) {
     return triton::nvgpu::WGMMAEltType::e4m3;
   } else {
     llvm::report_fatal_error("Unsupported mma operand type found");
@@ -91,7 +92,7 @@ int64_t getSwizzlingFromLayout(const SharedEncodingAttr &layout,
   return swizzlingByteWidth;
 }
 
-static Value createDescriptor(ConversionPatternRewriter &rewriter, Location loc,
+Value createDescriptor(ConversionPatternRewriter &rewriter, Location loc,
                               int64_t swizzling, uint32_t stride) {
   static_assert(sizeof(SMEMDescriptor) == 8,
                 "Descriptor size should be 64 bits.");

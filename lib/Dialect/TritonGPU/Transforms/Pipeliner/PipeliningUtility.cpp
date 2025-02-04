@@ -255,7 +255,7 @@ mlir::triton::maybeGetStageCluster(Operation *op) {
 }
 std::pair<int, int> mlir::triton::getStageCluster(Operation *op) {
   auto res = maybeGetStageCluster(op);
-  assert(res.has_value() || "Operation is missing stage & cluster attribute");
+  assert(res.has_value() && "Operation is missing stage & cluster attribute");
   return *res;
 }
 
