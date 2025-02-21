@@ -4,6 +4,7 @@
 #include "Utility.h"
 #include "mlir/Support/LLVM.h"
 #include "triton/Conversion/TritonGPUToLLVM/PatternTritonGPUOpToLLVM.h"
+#include "triton/Conversion/TritonGPUToLLVM/Utility.h"
 
 using namespace mlir;
 using namespace mlir::triton;
@@ -58,8 +59,8 @@ enum class mxfpKind { mxf8f6f4 = 0, mxf4 = 1, mxf4nvf4 = 2 };
 inline mxfpKind getMXFPKind(ScaleDotElemType typeA, ScaleDotElemType typeB,
                             Type scaleAType, Type scaleBType) {
   if (typeA == ScaleDotElemType::E2M1 && typeB == ScaleDotElemType::E2M1) {
-    if (llvm::isa<Float8E4M3FNType>(scaleAType) &&
-        llvm::isa<Float8E4M3FNType>(scaleBType)) {
+    if (llvm::isa<mlir::Float8E4M3FNType>(scaleAType) &&
+        llvm::isa<mlir::Float8E4M3FNType>(scaleBType)) {
       return mxfpKind::mxf4nvf4;
     }
     return mxfpKind::mxf4;
@@ -100,10 +101,11 @@ static Value createInstDescriptor(ConversionPatternRewriter &rewriter,
       return 1;
     if (type.isF32())
       return 2;
-    if (llvm::isa<Float8E4M3FNType>(type))
+    if (llvm::isa<mlir::Float8E4M3FNType>(type))
       return 0;
-    if (llvm::isa<Float8E5M2Type>(type))
+    if (llvm::isa<mlir::Float8E5M2Type>(type))
       return 1;
+
     llvm_unreachable("Unsupported type.");
   };
   static_assert(sizeof(TCGen5InstructionDescriptor) == 4,
@@ -225,7 +227,8 @@ static void createGen5MMA(ConversionPatternRewriter &rewriter, Location loc,
     opcode += "f16";
   else if (srcElementTy.isF32())
     opcode += "tf32";
-  else if (llvm::isa<Float8E4M3FNType, Float8E5M2Type>(srcElementTy))
+  else if (llvm::isa<mlir::Float8E4M3FNType>(srcElementTy) ||
+           llvm::isa<mlir::Float8E5M2Type>(srcElementTy))
     opcode += "f8f6f4";
   else
     assert(0 && "Unsupported type.");
