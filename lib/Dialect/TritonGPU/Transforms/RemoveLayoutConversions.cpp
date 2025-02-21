@@ -165,6 +165,7 @@ private:
   SetVector<Operation *> opToDelete;
   FuncOp funcOp;
   DominanceInfo domInfo;
+  PostDominanceInfo postDomInfo;
 };
 
 void LayoutRematerialization::addRematValue(Value old, Attribute encoding,
@@ -1120,13 +1121,35 @@ void LayoutRematerialization::hoistConvertDotOperand(
     ConvertLayoutOp convertOp) {
   auto targetType = convertOp.getType();
   // The pass is targeted to Nvidia mma/wgmma dot operands
+
+  // Partial cherry-pick of https://github.com/triton-lang/triton/pull/5475.
+  // Path 2 in b/391692127#comment28. Added check for parent being a for loop.
+  auto canBePipelined = [&](ConvertLayoutOp convertOp) {
+    auto parent = dyn_cast<scf::ForOp>(convertOp->getParentOp());
+    if (!parent) return false;
+
+    // Find all the dot-like ops in the for loop that have a nvidia dot operand
+    // encoding on the lhs and check if any of them post-dominates the load +
+    // cvt
+    SmallVector<Operation *> dotLikeOps;
+    parent->walk([&](Operation *op) {
+      if (!isa<mlir::triton::DotOpInterface>(op)) return;
+      auto opType = dyn_cast<RankedTensorType>(op->getOperand(0).getType());
+      if (!opType) return;
+      auto dotEnc = dyn_cast<DotOperandEncodingAttr>(opType.getEncoding());
+      if (!dotEnc) return;
+      if (isa<NvidiaMmaEncodingAttr>(dotEnc.getParent()))
+        dotLikeOps.push_back(op);
+    });
+    if (dotLikeOps.empty()) return false;
+    return llvm::any_of(dotLikeOps, [&](Operation *dot) {
+      return postDomInfo.postDominates(dot, convertOp);
+    });
+  };
+
   // We move convert #dot_operand next to their loads. This is done
   // so that it's then easy to pipeline these loads
-  // TODO: Perhaps we should do this whenever convertOp is within a loop
-
-  auto dotEnc = dyn_cast<DotOperandEncodingAttr>(targetType.getEncoding());
-  if (!(dotEnc && isa<NvidiaMmaEncodingAttr>(dotEnc.getParent())))
-    return;
+  if (!canBePipelined(convertOp)) return;
 
   // We hoist over any operation that can be done without data movement between
   // threads We do views and elementwise pure ops for now

@@ -159,6 +159,11 @@ struct CanonicalizeConvertFromAlloc
     auto convert = op.getSrc().getDefiningOp<ConvertLayoutOp>();
     if (!convert)
       return failure();
+    // LocalAllocOp lowering doesn't support going from DotOperandEncoding
+    // to SharedEncoding, so we want to keep this layout conversion.
+    if (mlir::isa<triton::gpu::DotOperandEncodingAttr>(
+            convert.getSrc().getType().getEncoding()))
+      return failure();
     rewriter.replaceOpWithNewOp<triton::gpu::LocalAllocOp>(
         op, op->getResult(0).getType(), convert.getSrc());
     return mlir::success();
@@ -221,8 +226,8 @@ struct CanonicalizeConvertFromConvert
     // heuristic to accommodate fused attention.
     auto srcType = op.getSrc().getType();
     auto dstType = op.getType();
-    if (mlir::isa<DotOperandEncodingAttr>(dstType.getEncoding()) &&
-        mlir::isa<NvidiaMmaEncodingAttr>(srcType.getEncoding()))
+    if (mlir::isa_and_nonnull<DotOperandEncodingAttr>(dstType.getEncoding()) &&
+        mlir::isa_and_nonnull<NvidiaMmaEncodingAttr>(srcType.getEncoding()))
       return failure();
 
     Operation *arg = op.getSrc().getDefiningOp();
