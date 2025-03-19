@@ -78,7 +78,7 @@ int64_t getSwizzlingFromLayout(const NVMMASharedEncodingAttr &layout,
   return swizzlingByteWidth;
 }
 
-static Value createDescriptor(ConversionPatternRewriter &rewriter, Location loc,
+Value createDescriptor(ConversionPatternRewriter &rewriter, Location loc,
                               int64_t swizzling, uint32_t stride) {
   auto b = TritonLLVMOpBuilder(loc, rewriter);
   static_assert(sizeof(SMEMDescriptor) == 8,

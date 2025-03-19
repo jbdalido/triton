@@ -1059,18 +1059,26 @@ getSharedEncIfAllUsersAreDotEnc(Value val, bool &incompatible) {
     } else {
       if (!isa<ttg::LocalLoadOp, ttg::ConvertLayoutOp>(user))
         return std::nullopt;
-      auto dotOpEnc = dyn_cast<ttg::DotOperandEncodingAttr>(
+      auto enc =
           cast<triton::gpu::TensorOrMemDesc>(user->getResult(0).getType())
-              .getEncoding());
-      if (!dotOpEnc)
+              .getEncoding();
+      if (enc.getAbstractAttribute().getName().str() ==
+          "triton.gpu.sparse_dot_meta_encoding") {
+        auto srcTy = cast<triton::gpu::TensorOrMemDesc>(val.getType());
+        tempAttr = ttg::SwizzledSharedEncodingAttr::get(
+            val.getContext(), /*vec=*/1, /*perPhase=*/1, /*maxPhase=*/1,
+            ttg::getOrder(srcTy), ttg::getCTALayout(srcTy.getEncoding()));
+      } else if (auto dotOpEnc = dyn_cast<ttg::DotOperandEncodingAttr>(enc)) {
+        auto srcTy = cast<triton::gpu::TensorOrMemDesc>(val.getType());
+        auto CTALayout = ttg::getCTALayout(srcTy.getEncoding());
+        auto order = ttg::getOrder(srcTy);
+        unsigned bitWidth = srcTy.getElementType().getIntOrFloatBitWidth();
+        tempAttr = ttg::SwizzledSharedEncodingAttr::get(
+            val.getContext(), dotOpEnc, srcTy.getShape(), order, CTALayout,
+            bitWidth, /*needTrans=*/false);
+      } else {
         return std::nullopt;
-      auto srcTy = cast<triton::gpu::TensorOrMemDesc>(val.getType());
-      auto CTALayout = ttg::getCTALayout(srcTy.getEncoding());
-      auto order = ttg::getOrder(srcTy);
-      unsigned bitWidth = srcTy.getElementType().getIntOrFloatBitWidth();
-      tempAttr = ttg::SwizzledSharedEncodingAttr::get(
-          val.getContext(), dotOpEnc, srcTy.getShape(), order, CTALayout,
-          bitWidth, /*needTrans=*/false);
+      }
     }
     // Check that the shared encodings needed by the users are compatible.
     if (attr != nullptr && attr != tempAttr) {

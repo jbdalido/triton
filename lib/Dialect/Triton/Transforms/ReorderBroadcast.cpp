@@ -38,10 +38,11 @@ bool isSplat(Operation *op) {
 
 // elementwise(splat(a), splat(b), ...) => splat(elementwise(a, b, ...))
 struct MoveSplatAfterElementwisePattern
-    : public OpTraitRewritePattern<OpTrait::Elementwise> {
+    : public OpTraitRewritePattern<OpTrait::Elementwise>::SplitMatchAndRewrite {
 
   MoveSplatAfterElementwisePattern(MLIRContext *context)
-      : OpTraitRewritePattern(context) {}
+      : SplitMatchAndRewrite(Pattern::MatchTraitOpTypeTag(),
+                             TypeID::get<OpTrait::Elementwise>(), 1, context) {}
 
   LogicalResult match(Operation *op) const override {
     if (!isMemoryEffectFree(op)) {
@@ -103,10 +104,13 @@ struct MoveSplatAfterElementwisePattern
 // This also generalizes to multiple arguments when the rest are splat-like
 // Not handled: multiple broadcasted arguments
 struct MoveBroadcastAfterElementwisePattern
-    : public OpTraitRewritePattern<OpTrait::Elementwise> {
+    : public OpTraitRewritePattern<OpTrait::Elementwise>::SplitMatchAndRewrite {
+
+  using SplitMatchAndRewrite::SplitMatchAndRewrite;
 
   MoveBroadcastAfterElementwisePattern(MLIRContext *context)
-      : OpTraitRewritePattern(context) {}
+      : SplitMatchAndRewrite(Pattern::MatchTraitOpTypeTag(),
+                             TypeID::get<OpTrait::Elementwise>(), 1, context) {}
 
   LogicalResult match(Operation *op) const override {
     if (!isMemoryEffectFree(op)) {

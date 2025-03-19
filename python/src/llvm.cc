@@ -59,7 +59,7 @@ createTargetMachine(llvm::Module *module, std::string proc,
   opt.MCOptions.AsmVerbose = true;
   opt.MCOptions.PreserveAsmComments = true;
   std::unique_ptr<llvm::TargetMachine> machine{target->createTargetMachine(
-      module->getTargetTriple(), proc, features, opt, llvm::Reloc::PIC_,
+      module->getTargetTriple().str(), proc, features, opt, llvm::Reloc::PIC_,
       std::nullopt,
       disableLLVMOpt ? llvm::CodeGenOptLevel::None
                      : llvm::CodeGenOptLevel::Aggressive)};
@@ -132,7 +132,7 @@ std::string translateLLVMIRToASM(llvm::Module &module,
   // module->print(llvm::outs(), nullptr);
 
   // create machine
-  module.setTargetTriple(triple);
+  module.setTargetTriple(llvm::Triple(triple));
   auto machine = createTargetMachine(&module, proc, enable_fp_fusion, features);
   // set data layout
   module.setDataLayout(machine->createDataLayout());

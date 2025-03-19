@@ -1121,8 +1121,7 @@ void LayoutRematerialization::hoistConvertDotOperand(
   // The pass is targeted to Nvidia mma/wgmma dot operands
 
   auto canBePipelined = [&](ConvertLayoutOp convertOp) {
-    // FIXME: Check that the parent is a for loop
-    auto parent = convertOp->getParentOp();
+    auto parent = dyn_cast<scf::ForOp>(convertOp->getParentOp());
     if (!parent)
       return false;
 
