@@ -305,6 +305,24 @@ gentbl_cc_library(
     deps = ["td_files"],
 )
 
+
+gentbl_cc_library(
+    name = "triton_nvidia_gpu_types_inc_gen",
+    tbl_outs = [
+        (
+            ["--gen-typedef-decls"],
+            "include/triton/Dialect/TritonNvidiaGPU/IR/Types.h.inc",
+        ),
+        (
+            ["--gen-typedef-defs"],
+            "include/triton/Dialect/TritonNvidiaGPU/IR/Types.cpp.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "include/triton/Dialect/TritonNvidiaGPU/IR/TritonNvidiaGPUTypes.td",
+    deps = ["td_files"],
+)
+
 gentbl_cc_library(
     name = "triton_gpu_type_interfaces_inc_gen",
     tbl_outs = [
@@ -510,6 +528,7 @@ cc_library(
         "include/triton/Conversion/TritonGPUToLLVM/Utility.h",  # Avoid circular dependency.
         "include/triton/Conversion/TritonToTritonGPU/TritonToTritonGPUPass.h",  # Avoid circular dependency.
         "lib/Dialect/TritonGPU/Transforms/Utility.cpp",  # Avoid circular dependency.
+   
     ],
     hdrs = glob([
         "include/triton/Dialect/Triton/IR/*.h",
@@ -541,6 +560,7 @@ cc_library(
         ":triton_gpu_dialect_inc_gen",
         ":triton_gpu_ops_inc_gen",
         ":triton_gpu_types_inc_gen",
+        ":triton_nvidia_gpu_types_inc_gen",
         ":triton_gpu_type_interfaces_inc_gen",
         ":triton_interfaces_inc_gen",
         ":triton_nvidia_gpu_dialect_inc_gen",
