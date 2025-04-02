@@ -218,7 +218,7 @@ void getSliceToPartition(Value root, unsigned dim, int sliceSize,
   slice.insert(forwardSlice.begin(), forwardSlice.end());
   for (auto op : forwardSlice) {
     if (op->hasTrait<OpTrait::Elementwise>() ||
-        isa<tt::StoreOp, ExperimentalDescriptorStoreOp>(op)) {
+        isa<tt::StoreOp, DescriptorStoreOp>(op)) {
       for (OpOperand &operand : op->getOpOperands()) {
         getBackwardSliceToPartition(operand.get(), dim, sliceSize, slice);
       }
@@ -592,7 +592,7 @@ Operation *sliceOp(Operation *op, int offset, IRMapping &mappings,
       sliceOp(operand, offset, mappings, reverseMappings, partitionScheme);
     // TODO: slice store base ptr
     newOp = cloneAndSetResultType(op);
-  } else if (isa<DescriptorLoadOp, ExperimentalDescriptorStoreOp>(
+  } else if (isa<DescriptorLoadOp, DescriptorStoreOp>(
                  op)) {
     SmallVector<int64_t> shape;
     Value coordVal;
@@ -601,7 +601,7 @@ Operation *sliceOp(Operation *op, int offset, IRMapping &mappings,
               partitionScheme);
       coordVal = loadOp.getIndices()[dim];
       shape = getShape(loadOp.getResult());
-    } else if (auto storeOp = dyn_cast<ExperimentalDescriptorStoreOp>(op)) {
+    } else if (auto storeOp = dyn_cast<DescriptorStoreOp>(op)) {
       sliceOp(storeOp.getDesc(), offset, mappings, reverseMappings,
               partitionScheme);
       coordVal = storeOp.getIndices()[dim];

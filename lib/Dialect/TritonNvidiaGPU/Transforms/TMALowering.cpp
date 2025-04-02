@@ -172,7 +172,7 @@ static void lowerTMAStore(Operation *op, mlir::TypedValue<RankedTensorType> src,
 struct TMAStoreLowering : public OpRewritePattern<DescriptorStoreOp> {
   using OpRewritePattern::OpRewritePattern;
 
-  LogicalResult matchAndRewrite(ExperimentalDescriptorStoreOp op,
+  LogicalResult matchAndRewrite(DescriptorStoreOp op,
                                 PatternRewriter &baseRewriter) const override {
     PatternRewriterWithAsyncTaskIds rewriter(baseRewriter, op);
     auto createStore = [&](Value tmaPtr, Value alloc) {
@@ -191,7 +191,7 @@ struct TMAStoreLowering : public OpRewritePattern<DescriptorStoreOp> {
 struct TMAScatterLowering : public OpRewritePattern<DescriptorScatterOp> {
   using OpRewritePattern::OpRewritePattern;
 
-  LogicalResult matchAndRewrite(ExperimentalDescriptorScatterOp op,
+  LogicalResult matchAndRewrite(DescriptorScatterOp op,
                                 PatternRewriter &baseRewriter) const override {
     PatternRewriterWithAsyncTaskIds rewriter(baseRewriter, op);
     auto createStore = [&](Value tmaPtr, Value alloc) {
