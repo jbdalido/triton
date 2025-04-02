@@ -1447,7 +1447,7 @@ void init_triton_ir(py::module &&m) {
               std::vector<Value> element_stride, int32_t elem_type,
               int32_t interleave_layout, int32_t swizzle_mode,
               int32_t fill_mode) {
-             self.create<ExperimentalTensormapCreateOp>(
+             self.create<TensormapCreateOp>(
                  desc_ptr, global_address, box_dim, global_dim, global_stride,
                  element_stride, elem_type, interleave_layout, swizzle_mode,
                  fill_mode);

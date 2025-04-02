@@ -222,7 +222,7 @@ mlir::LogicalResult createTMADesc(mlir::Value tmaPtr,
     }
   }
 
-  builder.template create<triton::ExperimentalTensormapCreateOp>(
+  builder.template create<triton::TensormapCreateOp>(
       loc,
       /*desc_ptr=*/tmaPtr,
       /*global_address=*/op.getBase(),

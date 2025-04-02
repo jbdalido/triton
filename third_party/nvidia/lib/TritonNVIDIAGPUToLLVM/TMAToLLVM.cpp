@@ -236,17 +236,17 @@ void zero_fill_tma(Location loc, MLIRContext *ctx,
   LLVM::NVIDIA::createSyncWarp(loc, rewriter);
 }
 
-struct ExperimentalTensormapCreateOpConversion
-    : public ConvertOpToLLVMPattern<ExperimentalTensormapCreateOp> {
+struct TensormapCreateOpConversion
+    : public ConvertOpToLLVMPattern<TensormapCreateOp> {
   const NVIDIA::TargetInfo &targetInfo;
 
-  ExperimentalTensormapCreateOpConversion(LLVMTypeConverter &converter,
+  TensormapCreateOpConversion(LLVMTypeConverter &converter,
                                           const NVIDIA::TargetInfo &targetInfo,
                                           PatternBenefit benefit)
       : ConvertOpToLLVMPattern(converter, benefit), targetInfo(targetInfo) {}
 
   LogicalResult
-  matchAndRewrite(triton::ExperimentalTensormapCreateOp op, OpAdaptor adaptor,
+  matchAndRewrite(triton::TensormapCreateOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     Location loc = op->getLoc();
     auto b = TritonLLVMOpBuilder(loc, rewriter);
@@ -328,7 +328,7 @@ struct TensorDescToTMAPtrOpConversion
 void mlir::triton::NVIDIA::populateTMAToLLVMPatterns(
     LLVMTypeConverter &typeConverter, const TargetInfo &targetInfo,
     RewritePatternSet &patterns, PatternBenefit benefit) {
-  patterns.add<ExperimentalTensormapCreateOpConversion>(typeConverter,
+  patterns.add<TensormapCreateOpConversion>(typeConverter,
                                                         targetInfo, benefit);
   patterns
       .add<ExperimentalTensormapFenceproxyAcquireOpConversion,

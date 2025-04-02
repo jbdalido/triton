@@ -1341,8 +1341,8 @@ LogicalResult DescriptorStoreOp::verify() {
                                       getSrc().getType());
 }
 
-// -- ExperimentalTensormapCreateOp --
-LogicalResult ExperimentalTensormapCreateOp::verify() {
+// -- TensormapCreateOp --
+LogicalResult TensormapCreateOp::verify() {
   auto rank = getBoxDim().size();
   if (getGlobalDim().size() != rank) {
     return emitError("Rank mismatch for global dim. Got ")

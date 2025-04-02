@@ -1362,7 +1362,7 @@ def TT_DescriptorScatterOp : TT_Op<"descriptor_scatter", [
   }];
 }
 
-def TT_ExperimentalTensormapCreateOp: TT_Op<
+def TT_TensormapCreateOp: TT_Op<
   "experimental_tensormap_create",
   [
     MemoryEffects<[MemRead<GlobalMemory>, MemWrite<GlobalMemory>]>,

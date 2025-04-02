@@ -58,7 +58,7 @@ void fixTaskId(triton::FuncOp &funcOp) {
       if (!defOp)
         continue;
       // Do not update loads.
-      if (isa<tt::LoadOp, tt::ExperimentalDescriptorLoadOp>(defOp))
+      if (isa<tt::LoadOp, tt::DescriptorLoadOp>(defOp))
         continue;
       auto defTaskIds = getAsyncTaskIds(defOp);
       // Make sure defTaskIds cover asyncTaskIds. Call addAsyncTaskIds if
@@ -131,7 +131,7 @@ void getBackwardSliceToPartition(Value root, unsigned dim, int sliceSize,
             isa<arith::ConstantOp, arith::ExtSIOp, arith::ExtUIOp,
                 arith::ExtFOp, BroadcastOp, ExpandDimsOp, MakeRangeOp, SplatOp,
                 ConvertLayoutOp, triton::gpu::LocalAllocOp, LoadOp,
-                ExperimentalDescriptorLoadOp, nvidia_gpu::TMEMAllocOp,
+                DescriptorLoadOp, nvidia_gpu::TMEMAllocOp,
                 nvidia_gpu::TMEMLoadOp>(op)) {
           for (Value operand : op->getOperands())
             queue.push_back(operand);
@@ -592,11 +592,11 @@ Operation *sliceOp(Operation *op, int offset, IRMapping &mappings,
       sliceOp(operand, offset, mappings, reverseMappings, partitionScheme);
     // TODO: slice store base ptr
     newOp = cloneAndSetResultType(op);
-  } else if (isa<ExperimentalDescriptorLoadOp, ExperimentalDescriptorStoreOp>(
+  } else if (isa<DescriptorLoadOp, ExperimentalDescriptorStoreOp>(
                  op)) {
     SmallVector<int64_t> shape;
     Value coordVal;
-    if (auto loadOp = dyn_cast<ExperimentalDescriptorLoadOp>(op)) {
+    if (auto loadOp = dyn_cast<DescriptorLoadOp>(op)) {
       sliceOp(loadOp.getDesc(), offset, mappings, reverseMappings,
               partitionScheme);
       coordVal = loadOp.getIndices()[dim];
@@ -619,7 +619,7 @@ Operation *sliceOp(Operation *op, int offset, IRMapping &mappings,
     }
 
     newOp = cloneAndSetResultType(op);
-    if (isa<ExperimentalDescriptorLoadOp>(op)) {
+    if (isa<DescriptorLoadOp>(op)) {
       // map load result
       auto v = op->getResult(0);
       auto newV = newOp->getResult(0);

@@ -111,7 +111,7 @@ class TMALoadLowering : public OpRewritePattern<DescriptorLoadOp> {
 public:
   using OpRewritePattern::OpRewritePattern;
 
-  LogicalResult matchAndRewrite(ExperimentalDescriptorLoadOp op,
+  LogicalResult matchAndRewrite(DescriptorLoadOp op,
                                 PatternRewriter &baseRewriter) const override {
     PatternRewriterWithAsyncTaskIds rewriter(baseRewriter, op);
     auto createLoad = [&](Value tmaPtr, Value barrierAlloc, Value alloc,
@@ -131,7 +131,7 @@ public:
 struct TMAGatherLowering : public OpRewritePattern<DescriptorGatherOp> {
   using OpRewritePattern::OpRewritePattern;
 
-  LogicalResult matchAndRewrite(ExperimentalDescriptorGatherOp op,
+  LogicalResult matchAndRewrite(DescriptorGatherOp op,
                                 PatternRewriter &baseRewriter) const override {
     PatternRewriterWithAsyncTaskIds rewriter(baseRewriter, op);
     auto createLoad = [&](Value tmaPtr, Value barrierAlloc, Value alloc,
