@@ -560,7 +560,6 @@ cc_library(
         ":triton_gpu_dialect_inc_gen",
         ":triton_gpu_ops_inc_gen",
         ":triton_gpu_types_inc_gen",
-        ":triton_nvidia_gpu_types_inc_gen",
         ":triton_gpu_type_interfaces_inc_gen",
         ":triton_interfaces_inc_gen",
         ":triton_nvidia_gpu_dialect_inc_gen",
