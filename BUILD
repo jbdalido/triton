@@ -607,7 +607,6 @@ cc_library(
             "lib/Dialect/TritonGPU/Transforms/*.h",
             "lib/Dialect/TritonGPU/Transforms/Pipeliner/*.cpp",
             "lib/Dialect/TritonGPU/Transforms/Pipeliner/*.h",
-            "lib/Dialect/TritonGPU/Transforms/WarpSpecialization/*.cpp",
         ],
         exclude = ["lib/Dialect/TritonGPU/Transforms/Utility.cpp"],
     ),
