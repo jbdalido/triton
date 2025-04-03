@@ -695,9 +695,7 @@ cc_library(
     name = "TritonNvidiaGPUTransforms",
     srcs = glob([
         "lib/Dialect/TritonNvidiaGPU/Transforms/*.cpp",
-    ]) + [
-        "@triton//test:lib/Dialect/TritonGPU/TestTC05MMAPipeline.cpp",
-    ],
+    ]) ,
     hdrs = glob([
         "include/triton/Dialect/TritonNvidiaGPU/Transforms/*.h",
     ]),
